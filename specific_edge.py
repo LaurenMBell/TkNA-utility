@@ -1,5 +1,5 @@
 #
-# Loads in a csv file with gene pairs, and turns each into a scatterplot
+# loads in a csv file with gene pairs, and turns each into a scatterplot
 # for each model in the data (LPS, DSS, and VECPAC)
 #
 
@@ -42,37 +42,28 @@ def load_gene_pairs(filepath):
     
     # Check if the file exists
     if not pair_path.exists():
-        print(f"Error: Gene pairs file not found at {pair_path} :(")
+        print(f"Uh-oh: Gene pairs file not found at {pair_path} :(")
         return []
     
     gene_pairs = []
     
-    try:
-        # First try with csv module for more reliable parsing
-        with open(pair_path, 'r') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) >= 2:
-                    gene_pairs.append((row[0].strip(), row[1].strip()))
-                elif len(row) == 1 and ',' in row[0]:
-                    # Handle case where commas might be within a single column
-                    genes = row[0].split(',')
-                    if len(genes) >= 2:
-                        gene_pairs.append((genes[0].strip(), genes[1].strip()))
+    #read in the gene pairs from the given csv file
+    with open(pair_path, 'r') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) >= 2:
+                gene_pairs.append((row[0].strip(), row[1].strip()))
+            elif len(row) == 1 and ',' in row[0]:
+                genes = row[0].split(',')
+                if len(genes) >= 2:
+                    gene_pairs.append((genes[0].strip(), genes[1].strip()))
         
-        # Print the gene pairs for debugging
-        print(f"Loaded {len(gene_pairs)} gene pairs from {pair_path}:")
-        for i, (gene1, gene2) in enumerate(gene_pairs):
-            print(f"Pair {i+1}: {gene1}, {gene2}")
+    print(f"Loaded gene pairs from {pair_path}!")
         
-        return gene_pairs
-    
-    except Exception as e:
-        print(f"Error loading gene pairs: {e}")
-        return []
+    return gene_pairs
 
 def get_base_gene_id(gene_id):
-    # Extract the base ENSMUSG ID without any suffix
+    #extract the base ENSMUSG ID without any suffix
     match = re.match(r'(ENSMUSG\d+)', gene_id)
     return match.group(1) if match else gene_id
 
@@ -85,11 +76,11 @@ def create_scatterplot(gene1, gene2, data, groupmap, model, output_dir):
     
     control_samples = groupmap[groupmap['group'] == control_label]['ID'].astype(str).tolist()
     
-    # Extract base gene IDs for lookup
+    # extract base gene IDs for lookup
     base_gene1 = get_base_gene_id(gene1)
     base_gene2 = get_base_gene_id(gene2)
     
-    # Look for genes that match the base ID
+    # look for genes that match the base ID
     gene1_row = data[data.iloc[:, 0].str.contains(base_gene1)]
     gene2_row = data[data.iloc[:, 0].str.contains(base_gene2)]
     
@@ -105,33 +96,32 @@ def create_scatterplot(gene1, gene2, data, groupmap, model, output_dir):
     
     control_indices = [col for col in data.columns if str(col) in control_samples]
     
-    if not control_indices:
-        print(f"Warning: No control samples found for {model}. Using all numeric columns.")
-        control_indices = [col for col in data.columns[1:] if pd.api.types.is_numeric_dtype(data[col])]
-    
     gene1_values = gene1_row[control_indices].values.flatten()
     gene2_values = gene2_row[control_indices].values.flatten()
-    
-    # Check if we have enough data points for regression
-    if len(gene1_values) < 2 or len(gene2_values) < 2:
-        print(f"Not enough data points for regression for {gene1} vs {gene2}")
-        return None
     
     plt.figure(figsize=(8, 6))
     plt.scatter(gene1_values, gene2_values)
     
-    # Make sure we have valid values for regression
+    #I'll be honest, one of the graphs just WOULD NOT SHOW the regression line
+    #no matter what I tried, so I used claude to debug and make this 
+    # if statement (it worked tho, so I'll give it credit there)
     valid_indices = ~np.isnan(gene1_values) & ~np.isnan(gene2_values)
     if np.sum(valid_indices) >= 2:
         try:
             slope, intercept, r_value, _, _ = stats.linregress(gene1_values[valid_indices], gene2_values[valid_indices])
-            x = np.array([min(gene1_values), max(gene1_values)])
-            plt.plot(x, intercept + slope * x, color='black')
-            
+
+            x_min = min(gene1_values[valid_indices])
+            x_max = max(gene1_values[valid_indices])
+        
+            x = np.linspace(x_min, x_max, 100)
+            y = intercept + slope * x
+        
+            plt.plot(x, y, color='black', linewidth=1.5)
+        
             plt.annotate(f'R² = {r_value**2:.3f}', xy=(0.05, 0.95), xycoords='axes fraction',
-                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
         except Exception as e:
-            print(f"Error calculating regression: {e}")
+            logger.error(f"Error calculating regression: {e}")
     
     plt.xlabel(f'{gene1}')
     plt.ylabel(f'{gene2}')
@@ -169,33 +159,18 @@ def main():
     #parse the arguments given and run the analysis and make the scatterplots
     parser = argparse.ArgumentParser()
     parser.add_argument('--gp', type=str, required=True)
+    parser.add_argument('--outdir', type=str, required=True)
     args = parser.parse_args()
     
-    output_dir = Path("~/TkNA/other/scatterplots").expanduser()
+    output_dir = Path(args.outdir).expanduser()
     output_dir.mkdir(exist_ok=True, parents=True)
     
-    # Alternative way to handle gene pairs if loading from file fails
-    gene_pairs_from_file = load_gene_pairs(args.gp)
-    
-    # If loading from file fails or returns fewer than expected pairs
-    if len(gene_pairs_from_file) < 5:
-        print("Warning: Failed to load all gene pairs from file. Using hardcoded pairs...")
-        gene_pairs = [
-            ("ENSMUSG00000005699-C", "ENSMUSG00000052957-C"),
-            ("ENSMUSG00000026820-P", "ENSMUSG00000021606-S"),
-            ("ENSMUSG00000005469-B", "ENSMUSG00000035569-B"),
-            ("ENSMUSG00000036371-P", "ENSMUSG00000040612-P"),
-            ("ENSMUSG00000020823-S", "ENSMUSG00000028937-S")
-        ]
-        print(f"Using {len(gene_pairs)} hardcoded gene pairs.")
-    else:
-        gene_pairs = gene_pairs_from_file
+    gene_pairs = load_gene_pairs(args.gp)
     
     results = process_gene_pairs(gene_pairs, output_dir)
     results.to_csv(output_dir / 'scatterplot_summary.csv', index=False)
-    
+
     print(f"Scatterplots saved!")
-    print(f"Summary saved!!")
     print("All done!")
 
 if __name__ == "__main__":
