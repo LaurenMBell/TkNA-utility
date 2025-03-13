@@ -4,13 +4,13 @@ import argparse
 from pathlib import Path
 
 
-def fetch_gene_data(gene_symbol):
+def fetch_gene_data(gene_symbol, rows):
     #gets all the data from the IMPC database for a gene_symbol
     base_url = "https://www.ebi.ac.uk/mi/impc/solr/experiment/select"
     params = {
         "q": f"gene_symbol:{gene_symbol}",
         "wt": "json", #the API returns in json data
-        "rows": 1000 #i could add more if needed 
+        "rows": rows #i could add more if needed 
     }
     response = requests.get(base_url, params=params)
     
@@ -41,7 +41,7 @@ def data_to_csv(data, output_dir, gene_symbol):
     return output_file
 
 
-def process_gene_list(gene_list, output_dir):
+def process_gene_list(gene_list, output_dir, rows):
     #processes all the genes in the given csv list
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -58,7 +58,7 @@ def process_gene_list(gene_list, output_dir):
     #process each gene
     results = []
     for gene in genes:
-        data = fetch_gene_data(gene)
+        data = fetch_gene_data(gene, rows)
         if data:
             output_file = data_to_csv(data, output_dir, gene)
             results.append({"gene": gene, "file": str(output_file), "records": len(data)})
@@ -81,9 +81,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--gene_list")
     parser.add_argument("--output_dir")
+    parser.add_argument("--rows", type=int, default=1000)
     args = parser.parse_args()
     
-    process_gene_list(args.gene_list, args.output_dir)
+    process_gene_list(args.gene_list, args.output_dir, int(args.rows))
 
 
 if __name__ == "__main__":
