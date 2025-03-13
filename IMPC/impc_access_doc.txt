@@ -22,9 +22,9 @@ Input:
 one CSV file with one gene name per row
 
 Ex: 
-Slc22a17\n
-Pax6\n
-Fto\n 
-KIAA1143\n 
-A2M\n
+Slc22a17
+Pax6
+Fto
+KIAA1143
+A2M
 
