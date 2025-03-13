@@ -12,11 +12,12 @@ Requirements:
  - csv
 
 Usage: 
-python impc_access.py --gene_list --output_dir
+python impc_access.py --gene_list path/to/your/input --output_dir path/to/where/the/ouput/shoud/go --rows num_rows_you_want
 
 --gene_list: the csv file containing your list of genes to fetch IMPC 
             data for
 --output_dir: where you want the resulting CSV file to go
+--rows: the number of rows of data you want, defaulting to 1000
 
 Input: 
 one CSV file with one gene name per row
