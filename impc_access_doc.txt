@@ -1,0 +1,30 @@
+Description: 
+utility script for accessing IMPC phenotypic data through their API,
+for a list of genes given as an argument. Returns as much raw data 
+as it can access, then saves data to a CSV file. 
+
+
+Requirements:
+ - Python 3
+ - requests
+ - pathlib
+ - argparse
+ - csv
+
+Usage: 
+python impc_access.py --gene_list --output_dir
+
+--gene_list: the csv file containing your list of genes to fetch IMPC 
+            data for
+--output_dir: where you want the resulting CSV file to go
+
+Input: 
+one CSV file with one gene name per row
+
+Ex: 
+Slc22a17\n
+Pax6\n
+Fto\n 
+KIAA1143\n 
+A2M\n
+
